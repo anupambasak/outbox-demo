@@ -1,0 +1,31 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.3.5'
+    id 'io.spring.dependency-management' version '1.1.6'
+}
+
+group = 'com.example'
+version = '1.0.0'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+ext {
+    // Spring Data Aerospike line that targets Spring Data 3 / Spring Boot 3.3.x
+    springDataAerospikeVersion = '4.8.0'
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
+    implementation 'org.springframework.kafka:spring-kafka'
+
+    // Brings in the Aerospike Java client and the Aerospike Reactor client transitively
+    implementation "com.aerospike:spring-data-aerospike:${springDataAerospikeVersion}"
+}

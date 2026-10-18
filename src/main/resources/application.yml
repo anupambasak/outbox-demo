@@ -1,0 +1,64 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: outbox-demo
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      acks: all
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      properties:
+        enable.idempotence: true
+        # send() can block while fetching metadata; never block longer than this
+        max.block.ms: 5000
+    consumer:
+      group-id: api-processor
+      enable-auto-commit: false
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      max-poll-records: 50
+    listener:
+      ack-mode: record      # offset committed after the listener method returns normally
+      concurrency: 3        # keep <= app.topic.partitions
+
+aerospike:
+  hosts: localhost:3000
+  namespace: test
+
+app:
+  topic:
+    name: api-requests
+    partitions: 3
+    replicas: 1
+
+  publisher:
+    poll-interval: 500ms    # pause between outbox polls
+    batch-size: 100         # max records picked up per poll
+    concurrency: 16         # records published in parallel within one poll
+    claim-lease: 30s        # how long a publisher instance "owns" a RECEIVED record
+    send-timeout: 5s        # wait for the Kafka broker ack (must be < claim-lease / 2)
+
+  processor:
+    lease: 60s              # how long a consumer "owns" a PROCESSING record (must be > 2 x external.timeout)
+    max-retries: 5          # in-process retries on transient failures before the record is FAILED + dead-lettered
+
+  sweeper:
+    enabled: true
+    interval: 60s
+    published-stuck-after: 10m   # PUBLISHED but never picked up -> republish
+    max-attempts: 10             # give up (FAILED) after this many consumer claims
+
+  external:
+    base-url: http://localhost:8080          # the demo mock lives in this same app
+    path: /mock-external/process
+    timeout: 10s
+    mock-enabled: true                       # set to false when you point at the real API
+
+logging:
+  level:
+    com.example.outbox: DEBUG
+    org.apache.kafka: WARN
